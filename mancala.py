@@ -1,0 +1,319 @@
+
+import sys
+import os
+from time import time
+from io import StringIO
+
+#Varialbes for mancala pit and depth
+#each player has 7 pits, 6 small ones, one Mancala pit (to score)
+MANCALA_PIT = 7
+DEPTH = 5
+
+#defining the class to represent the board
+class Board:
+
+    #some self representation functions
+    def __str__(self, *args, kwargs):
+        return str(self.board)
+
+    def __repr__(self, *args, **kwargs):
+        return "Board%s" % self.__str__()
+
+    #defining property class to modify self object (setting points for player 1 and player 2)
+    @property
+    def player1_points(self):
+        if self.no_moves_remaining():
+            return sum(self.board[1:8])
+        else:
+            return self.board[7]
+
+    @property
+    def player2_points(self):
+        if self.no_moves_remaining():
+            return self.board[0] + sum(self.board[8:])
+        else:
+            return self.board[0]    
+    #the above functions are defined to make it easier to print, and update the board as moves are made
+    
+    
+    #initializing the board
+    def __init__(self, board=None):
+        if board is not None:
+            self.board = board.board[:]
+            self.reversed = board.reversed
+        else:
+            self.board = [0, 4, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4]
+            self.reversed = False            
+
+    #define a function to check if moves can be made
+    def no_moves_remaining(self):
+        if any(self.board[8:]) == False or any(self.board[1:7]) == False:
+            return True
+        return False
+    
+    def no_moves_remaining_array(self, arr):
+        if any(arr[8:]) == False or any(arr[1:7]) == False:
+            return True
+        return False
+
+    #define this function to find all possible moves given the current board state.
+    #this function will help you determine the best possible move when using min_max 
+    #and alpha_beta.
+    def find_moves_player1(self, state, states, curr_path, path_map, curr_depth = 0, max_depth = 3):
+        if self.no_moves_remaining_array(state):
+            return [state], path_map
+        if curr_depth >= max_depth:
+            return states, path_map
+        
+        states.append(state)
+        if curr_path not in path_map:
+            path_map[curr_path] = {}
+            path_map[curr_path]['adj'] = []
+
+        for i in range(8, 14):
+            next_path = curr_path + str(i) + ';'
+            no_stones = state[i] == 0
+            t = self.update_board(i, board=state.copy())
+            next_move, next_turn = None, None
+            if no_stones == False:
+                next_move, next_turn = self.update_board(i, board=state.copy())
+
+            if next_move != None and no_stones == False:
+                path_map[curr_path]['adj'].append(next_path)
+                path_map[next_path] = {}
+                path_map[next_path]['scores'] = next_move[7] - next_move[0]
+                path_map[next_path]['parent'] = curr_path
+                path_map[next_path]['adj'] = []
+                if next_turn == 1:
+                    self.find_moves_player1(next_move, states, next_path, path_map, curr_depth = curr_depth + 1, max_depth = max_depth)
+                else: 
+                    self.find_moves_player2(next_move, states, next_path, path_map, curr_depth = curr_depth + 1, max_depth = max_depth)
+        return states, path_map
+    def find_moves_player2(self, state, states, curr_path, path_map, curr_depth = 0, max_depth = 3):
+        if self.no_moves_remaining_array(state):
+            return [state], path_map
+        if curr_depth >= max_depth:
+            return states, path_map
+        
+        states.append(state)
+        if curr_path not in path_map:
+            path_map[curr_path] = {}
+            path_map[curr_path]['adj'] = []
+        
+        for i in range(1, 7):
+            next_path = curr_path + str(i) + ';'
+            no_stones = state[i] == 0
+            next_move, next_turn = None, None
+            if no_stones == False:
+                next_move, next_turn = self.update_board(i, board=state.copy())
+
+            if next_move != None and no_stones == False:
+                path_map[curr_path]['adj'].append(next_path)
+                path_map[next_path] = {}
+                path_map[next_path]['scores'] = next_move[7] - next_move[0]
+                path_map[next_path]['parent'] = curr_path
+                path_map[next_path]['adj'] = []
+                if next_turn == 1:
+                    self.find_moves_player1(next_move, states, next_path, path_map, curr_depth = curr_depth + 1, max_depth = max_depth)
+                else: 
+                    self.find_moves_player2(next_move, states, next_path, path_map, curr_depth = curr_depth + 1, max_depth = max_depth)
+        return states, path_map
+
+    def find_moves(self, turn, root=None, max_depth = 3):
+        if root is None:
+            root = 'null;'
+        states, path_map = None, None
+        if turn == 2:
+            states, path_map = self.find_moves_player2(self.board.copy(), [], root, {}, max_depth = max_depth)
+        else:
+            states, path_map = self.find_moves_player1(self.board.copy(), [], root, {}, max_depth = max_depth)
+
+        if 'scores' not in path_map[root]:
+            path_map[root]['scores'] = (self.board[7], self.board[0])
+
+        state_graph = {
+            'states': states,
+            'paths': path_map,
+        }
+
+        return path_map
+
+
+    #define helper functions to help with "update_board()" function in the space below, before the "update_board()" function
+    def is_valid_choice(self, n, board):
+        if board is None:
+            board = self.board
+        if n <= 0 or n == 7 or n > len(board) or board[n] == 0:
+            return False
+        return True
+
+    #definie the "update_board()" function here.
+    #this function updates the board using the parameter "n" passed to it.
+    #using "n" as the players pit location, take the stones from that location,
+    #and update the board according to the rules (counterclockwise).
+    #if helper functions are needed, use the space above to define them.
+    def update_board(self, n, board=None):
+        # print("in update_board")
+        player = 2 if n < 7 else 1
+        next_turn = 1 if player == 2 else 2
+        if board is None:
+            board = self.board
+        if n == 0 or n == 7:
+            # print('Error: Cannot move from pit.')
+            return None, next_turn
+        elif self.board[n] == 0:
+            # print('error: No stones to move.')
+            return None, next_turn
+
+        index = n
+        stones = board[index]
+        if n != 0:
+            board[index] = 0
+            index -= 1
+
+        while stones != 0:
+            opp_index = 14 - index
+            if index != 0 and index != 7 and stones == 1 and board[index] == 0 and board[opp_index] != 0:
+                if index < 7 and player == 2:
+                    board[0] += board[opp_index] + stones
+                    board[opp_index] = 0
+                    break
+                elif index > 7 and player == 1:
+                    board[7] += board[opp_index] + stones
+                    board[opp_index] = 0
+                    break
+            if not (player == 1 and index == 0) and not (player == 2 and index == 7):
+                board[index] += 1
+                stones -= 1
+            if (index == 0 or index == 7) and stones == 0:
+                next_turn = 1 if player == 1 else 2
+            index -= 1
+            if index == -1:
+                index = len(board) - 1
+        
+        if self.no_moves_remaining_array(board):
+            for x, y in zip(range(1, 7), range(8, 14)):
+                board[0] += board[x]
+                board[x] = 0
+                board[7] += board[y]
+                board[y] = 0
+        return board, next_turn
+
+    def max_value(self, next_node, path_map):
+        if path_map[next_node]['adj'] == {}:
+            return path_map[next_node]['scores'], next_node
+        
+        v = -1 * float('inf')
+        max_path = next_node
+
+        for action in path_map[next_node]['adj']:
+            u, u_path = self.min_value(action, path_map)
+            v = v if v > u else u
+            max_path = max_path if v > u else u_path
+
+        return v, max_path
+    
+    def min_value(self, next_node, path_map):
+        if path_map[next_node]['adj'] == []:
+            return path_map[next_node]['scores'], next_node
+
+        v = float('inf')
+        min_path = next_node
+
+        for action in path_map[next_node]['adj']:
+            u, u_path = self.max_value(action, path_map)
+            v = v if v < u else u
+            min_path = min_path if v < u else u_path
+
+        return v, min_path
+
+    #define the min_max function below
+    #the starter code defines it with self and depth=3. 
+    #Add additional parameters if necessary
+    def min_max(self, depth=3, starting_player = 1):
+        print("in min_max")
+        self.print()
+        curr_player = starting_player
+        curr_root = 'null;'
+        total_path = ''
+        while self.no_moves_remaining() == False:
+            path_map = self.find_moves(curr_player, root = curr_root, max_depth = depth)
+            path_iter = ''
+            if curr_player == 1:
+                _, path_iter = self.max_value(curr_root, path_map)
+            else:
+                _, path_iter = self.min_value(curr_root, path_map)
+            mp_arr = path_iter.split(';')
+            mp_arr.pop(0)
+            mp_arr.pop()
+            total_path += ';'.join(mp_arr) + ';'
+            for x in range(len(mp_arr)):
+                print(f'------------------------------------------\nPlayer {curr_player} chooses {mp_arr[x]}')
+                curr_root = mp_arr[x] + ';'
+                _, curr_player = self.update_board(int(mp_arr[x]))
+                self.print()
+        print('total_path = ', total_path)
+
+    #define the alpha beta pruning function to minimize/maximize.
+    #the starter code defines it with self, depth=3, alpha=-999, beta=+999.
+    #add more parameters if necessary
+    #you need to call mim_max here to get the best value
+    def alpha_beta(sefl, depth=3, alpha=-999, beta=+999):
+        print("in alpha_beta")
+        #YOUR CODE GOES HERE
+        #YOUR CODE GOES HERE
+        #YOUR CODE GOES HERE
+        #YOUR CODE GOES HERE
+        #YOUR CODE GOES HERE
+    
+    #This function tells you how to caclulate the heuristic score.
+    #This should work, changes are not necessary.
+    def calculate_heurestic_score(self):
+        if not self.reversed:
+            return self.player1_points - self.player2_points
+        else:
+            return self.player2_points - self.player1_points
+
+    #define more helper functions to print current board state here
+    def print(self):
+        print("         ", end="")
+        print(*["%2d" % x for x in reversed(self.board[8:])], sep="|")
+        print(
+            "P2 --- %2d                  %2d --- P1"
+            % (self.player2_points, self.player1_points)
+        )
+        print("         ", end="")
+        print(*["%2d" % x for x in self.board[1:7]], sep="|")
+    
+#this function defines an object of class Board
+#to implement: set the board , according to the starting player (P1 or P2),
+#caclulate best moves for players 1 and 2.
+#Update the board according to the best move.
+#Keep iterating for up to 15 moves total (both players combined) in the future,
+#or until the game ends.
+def play_mancala(initial_board=None, starting_player=1):
+    board = initial_board
+    if board is None:
+        board = Board()
+
+    board.min_max(depth = 5, starting_player = int(starting_player))
+    
+    # while board.no_moves_remaining() == False:
+    #     board.print()
+    #     next_move = int(input("Make next move: "))
+    #     curr_player = board.update_board(next_move, board.board)[1]
+    # board.print()
+    print('Game over.')
+
+
+#main is defined here. it takes starting player from the commmand line,
+#and calls play_mancala. Initial player is int, either 1 or 2.
+#Note: for testing, you can define an initial board here and pass it to
+#play_mancala to test different starting conditions.
+if __name__ == "__main__":
+    player_choice = sys.argv[1]
+    print("player choice: ", player_choice)
+
+    default_board = None
+    play_mancala(default_board, player_choice)
+13;6;12;11;6;10;6;9;5;8;6;13;5;12;4;13;3;13;2;13;6;12;1;13;6;12;5;11;4;10;3;6;9;6;8;
