@@ -200,7 +200,7 @@ class Board:
         return board, next_turn
 
     def max_value(self, next_node, path_map):
-        if path_map[next_node]['adj'] == {}:
+        if path_map[next_node]['adj'] == []:
             return path_map[next_node]['scores'], next_node
         
         v = -1 * float('inf')
@@ -230,29 +230,20 @@ class Board:
     #define the min_max function below
     #the starter code defines it with self and depth=3. 
     #Add additional parameters if necessary
-    def min_max(self, depth=3, starting_player = 1):
-        print("in min_max")
-        self.print()
-        curr_player = starting_player
-        curr_root = 'null;'
-        total_path = ''
-        while self.no_moves_remaining() == False:
-            path_map = self.find_moves(curr_player, root = curr_root, max_depth = depth)
-            path_iter = ''
-            if curr_player == 1:
-                _, path_iter = self.max_value(curr_root, path_map)
-            else:
-                _, path_iter = self.min_value(curr_root, path_map)
-            mp_arr = path_iter.split(';')
-            mp_arr.pop(0)
-            mp_arr.pop()
-            total_path += ';'.join(mp_arr) + ';'
-            for x in range(len(mp_arr)):
-                print(f'------------------------------------------\nPlayer {curr_player} chooses {mp_arr[x]}')
-                curr_root = mp_arr[x] + ';'
-                _, curr_player = self.update_board(int(mp_arr[x]))
-                self.print()
-        print('total_path = ', total_path)
+    def min_max(self, curr_root, curr_player, depth=3):
+        path_map = self.find_moves(curr_player, root = curr_root, max_depth = depth)
+        path_iter = ''
+        if curr_player == 1:
+            _, path_iter = self.max_value(curr_root, path_map)
+        else:
+            _, path_iter = self.min_value(curr_root, path_map)
+        mp_arr = path_iter.split(';')
+        mp_arr.pop(0)
+        mp_arr.pop()
+        print(f'------------------------------------------\nPlayer {curr_player} chooses {mp_arr[0]}')
+        curr_root = mp_arr[0] + ';'
+
+        return int(mp_arr[0])
 
     #define the alpha beta pruning function to minimize/maximize.
     #the starter code defines it with self, depth=3, alpha=-999, beta=+999.
@@ -291,21 +282,27 @@ class Board:
 #Update the board according to the best move.
 #Keep iterating for up to 15 moves total (both players combined) in the future,
 #or until the game ends.
-def play_mancala(initial_board=None, starting_player=1):
+def play_mancala(initial_board=None, starting_player=1, human_player = 0):
     board = initial_board
     if board is None:
         board = Board()
 
-    board.min_max(depth = 5, starting_player = int(starting_player))
-    
-    # while board.no_moves_remaining() == False:
-    #     board.print()
-    #     next_move = int(input("Make next move: "))
-    #     curr_player = board.update_board(next_move, board.board)[1]
-    # board.print()
+    moves_made = []
+    curr_player = int(starting_player)
+    curr_root = 'null;'
+    while board.no_moves_remaining() == False:
+        if curr_player != human_player:
+            move = board.min_max(curr_root, curr_player, depth = 6)
+            _, curr_player = board.update_board(move)
+        else:
+            move = int(input('Select a move: '))
+            _, curr_player = board.update_board(move)
+
+        curr_root = str(move) + ';'
+        moves_made.append(move)
+        board.print()
+    print('moves_made = ', moves_made)
     print('Game over.')
-
-
 #main is defined here. it takes starting player from the commmand line,
 #and calls play_mancala. Initial player is int, either 1 or 2.
 #Note: for testing, you can define an initial board here and pass it to
@@ -315,5 +312,5 @@ if __name__ == "__main__":
     print("player choice: ", player_choice)
 
     default_board = None
-    play_mancala(default_board, player_choice)
-13;6;12;11;6;10;6;9;5;8;6;13;5;12;4;13;3;13;2;13;6;12;1;13;6;12;5;11;4;10;3;6;9;6;8;
+    human = 1
+    play_mancala(initial_board = default_board, starting_player = player_choice, human_player = human)
