@@ -369,14 +369,26 @@ def play_mancala(initial_board=None, starting_player=1, human_player = 0):
         turn_count += 1
     print('moves_made = ', moves_made)
     print('==================Alpha-Beta pruning game over==================')
+
+def is_int(n):
+    try:
+        return float(str(n)).is_integer()
+    except:
+        return False
 #main is defined here. it takes starting player from the commmand line,
 #and calls play_mancala. Initial player is int, either 1 or 2.
 #Note: for testing, you can define an initial board here and pass it to
 #play_mancala to test different starting conditions.
 if __name__ == "__main__":
-    player_choice = sys.argv[1]
-    print("player choice: ", player_choice)
+    if len(sys.argv) != 3:
+        print('Error: Invalid number of command-line arguments. Requires 2. First is which player starts, second is which player the human is. Anything other than 1 or 2 pits two AI against each other')
+    elif is_int(sys.argv[1]) == False or is_int(sys.argv[2]) == False:
+        print('Error: Both command line args must be integers.')
+    else:
+        player_choice = sys.argv[1]
+        print("player choice: ", player_choice)
 
-    default_board = None
-    human = 0
-    play_mancala(initial_board = default_board, starting_player = player_choice, human_player = human)
+        default_board = None
+        
+        human = int(sys.argv[2])
+        play_mancala(initial_board = default_board, starting_player = player_choice, human_player = human)
