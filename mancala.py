@@ -312,6 +312,12 @@ class Board:
         print("         ", end="")
         print(*["%2d" % x for x in self.board[1:7]], sep="|")
     
+def is_int(n):
+    try:
+        return float(str(n)).is_integer()
+    except:
+        return False
+
 #this function defines an object of class Board
 #to implement: set the board , according to the starting player (P1 or P2),
 #caclulate best moves for players 1 and 2.
@@ -357,7 +363,11 @@ def play_mancala(initial_board=None, starting_player=1, human_player = 0):
             move = board.alpha_beta(curr_root, curr_player, depth = 4)
             _, curr_player = board.update_board(move)
         else:
-            move = int(input('Select a move: '))
+            move_str = input('Select a move: ')
+            while is_int(move_str) == False:
+                move_str = input('Error: Invalid Selection. Move must be an integer. Re-enter: ')
+
+            move = int(move_str)
             ret_board, curr_player = board.update_board(move)
             while ret_board == None:
                 move = int(input("Error: Invalid move. Re-enter: "))
@@ -369,12 +379,6 @@ def play_mancala(initial_board=None, starting_player=1, human_player = 0):
         turn_count += 1
     print('moves_made = ', moves_made)
     print('==================Alpha-Beta pruning game over==================')
-
-def is_int(n):
-    try:
-        return float(str(n)).is_integer()
-    except:
-        return False
 #main is defined here. it takes starting player from the commmand line,
 #and calls play_mancala. Initial player is int, either 1 or 2.
 #Note: for testing, you can define an initial board here and pass it to
