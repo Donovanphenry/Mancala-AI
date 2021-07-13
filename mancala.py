@@ -122,19 +122,14 @@ class Board:
     def find_moves(self, turn, root=None, max_depth = 3):
         if root is None:
             root = 'null;'
-        states, path_map = None, None
+        _, path_map = None, None
         if turn == 2:
-            states, path_map = self.find_moves_player2(self.board.copy(), [], root, {}, max_depth = max_depth)
+            _, path_map = self.find_moves_player2(self.board.copy(), [], root, {}, max_depth = max_depth)
         else:
-            states, path_map = self.find_moves_player1(self.board.copy(), [], root, {}, max_depth = max_depth)
+            _, path_map = self.find_moves_player1(self.board.copy(), [], root, {}, max_depth = max_depth)
 
         if 'scores' not in path_map[root]:
             path_map[root]['scores'] = (self.board[7], self.board[0])
-
-        state_graph = {
-            'states': states,
-            'paths': path_map,
-        }
 
         return path_map
 
@@ -159,10 +154,8 @@ class Board:
         if board is None:
             board = self.board
         if n == 0 or n == 7:
-            # print('Error: Cannot move from pit.')
             return None, next_turn
         elif self.board[n] == 0:
-            # print('error: No stones to move.')
             return None, next_turn
 
         index = n
@@ -245,17 +238,60 @@ class Board:
 
         return int(mp_arr[0])
 
+    def ab_min_val(self, node, path_map, alpha, beta):
+        if path_map[node]['adj'] == []:
+            return path_map[node]['scores'], node
+        
+        v = float('inf')
+        min_path = node
+
+        for action in path_map[node]['adj']:
+            u, u_path = self.ab_max_val(action, path_map, alpha, beta)
+            v = min(u, v)
+            min_path = min_path if v < u else u_path
+
+            if v <= alpha:
+                return v, min_path
+            beta = min(v, beta)
+        
+        return v, min_path
+
+    def ab_max_val(self, node, path_map, alpha, beta):
+        if path_map[node]['adj'] == []:
+            return path_map[node]['scores'], node
+        
+        v = -1 * float('inf')
+        max_path = node
+
+        for action in path_map[node]['adj']:
+            u, u_path = self.ab_min_val(action, path_map, alpha, beta)
+            v = max(u, v)
+            max_path = max_path if v > u else u_path
+
+            if v >= beta:
+                return v, max_path
+            alpha = max(alpha, v)
+        
+        return v, max_path
+
     #define the alpha beta pruning function to minimize/maximize.
     #the starter code defines it with self, depth=3, alpha=-999, beta=+999.
     #add more parameters if necessary
     #you need to call mim_max here to get the best value
-    def alpha_beta(sefl, depth=3, alpha=-999, beta=+999):
-        print("in alpha_beta")
-        #YOUR CODE GOES HERE
-        #YOUR CODE GOES HERE
-        #YOUR CODE GOES HERE
-        #YOUR CODE GOES HERE
-        #YOUR CODE GOES HERE
+    def alpha_beta(self, curr_root, curr_player, depth=3, alpha=-999, beta=+999):
+        path_map = self.find_moves(curr_player, root = curr_root, max_depth = depth)
+        v, path_iter = None, ''
+        if curr_player == 1:
+            v, path_iter = self.ab_max_val(curr_root, path_map, alpha, beta)
+        else:
+            v, path_iter = self.ab_min_val(curr_root, path_map, alpha, beta)
+        mp_arr = path_iter.split(';')
+        mp_arr.pop(0)
+        mp_arr.pop()
+        print(f'------------------------------------------\nPlayer {curr_player} chooses {mp_arr[0]}')
+        curr_root = mp_arr[0] + ';'
+
+        return int(mp_arr[0])
     
     #This function tells you how to caclulate the heuristic score.
     #This should work, changes are not necessary.
@@ -284,25 +320,55 @@ class Board:
 #or until the game ends.
 def play_mancala(initial_board=None, starting_player=1, human_player = 0):
     board = initial_board
-    if board is None:
-        board = Board()
+    if initial_board is None:
+        initial_board = Board()
+    board = Board(board=initial_board)
 
+    print('==================Starting standard minimax version==================')
     moves_made = []
     curr_player = int(starting_player)
     curr_root = 'null;'
-    while board.no_moves_remaining() == False:
+    turn_count = 0
+    while board.no_moves_remaining() == False and turn_count < 15:
         if curr_player != human_player:
             move = board.min_max(curr_root, curr_player, depth = 6)
             _, curr_player = board.update_board(move)
         else:
             move = int(input('Select a move: '))
-            _, curr_player = board.update_board(move)
+            ret_board, curr_player = board.update_board(move)
+            while ret_board == None:
+                move = int(input("Error: Invalid move. Re-enter: "))
+                ret_board, curr_player = board.update_board(move)
 
         curr_root = str(move) + ';'
         moves_made.append(move)
         board.print()
+        turn_count += 1
     print('moves_made = ', moves_made)
-    print('Game over.')
+    print('==================Standard game over. Starting minimax with alpha-beta pruning version==================')
+
+    board = Board()
+    moves_made = []
+    curr_player = int(starting_player)
+    curr_root = 'null;'
+    turn_count = 0
+    while board.no_moves_remaining() == False and turn_count < 15:
+        if curr_player != human_player:
+            move = board.alpha_beta(curr_root, curr_player, depth = 4)
+            _, curr_player = board.update_board(move)
+        else:
+            move = int(input('Select a move: '))
+            ret_board, curr_player = board.update_board(move)
+            while ret_board == None:
+                move = int(input("Error: Invalid move. Re-enter: "))
+                ret_board, curr_player = board.update_board(move)
+
+        curr_root = str(move) + ';'
+        moves_made.append(move)
+        board.print()
+        turn_count += 1
+    print('moves_made = ', moves_made)
+    print('==================Alpha-Beta pruning game over==================')
 #main is defined here. it takes starting player from the commmand line,
 #and calls play_mancala. Initial player is int, either 1 or 2.
 #Note: for testing, you can define an initial board here and pass it to
@@ -312,5 +378,5 @@ if __name__ == "__main__":
     print("player choice: ", player_choice)
 
     default_board = None
-    human = 1
+    human = 0
     play_mancala(initial_board = default_board, starting_player = player_choice, human_player = human)
