@@ -338,7 +338,7 @@ def play_mancala(initial_board=None, starting_player=1, human_player = 0):
     turn_count = 0
     while board.no_moves_remaining() == False and turn_count < 15:
         if curr_player != human_player:
-            move = board.min_max(curr_root, curr_player, depth = 6)
+            move = board.min_max(curr_root, curr_player, depth = 4)
             _, curr_player = board.update_board(move)
         else:
             move = int(input('Select a move: '))
