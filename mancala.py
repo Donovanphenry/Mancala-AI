@@ -331,6 +331,7 @@ def play_mancala(initial_board=None, starting_player=1, human_player = 0):
     board = Board(board=initial_board)
 
     print('==================Starting standard minimax version==================')
+    board.print()
     moves_made = []
     curr_player = int(starting_player)
     curr_root = 'null;'
@@ -351,9 +352,11 @@ def play_mancala(initial_board=None, starting_player=1, human_player = 0):
         board.print()
         turn_count += 1
     print('moves_made = ', moves_made)
+    
     print('==================Standard game over. Starting minimax with alpha-beta pruning version==================')
 
     board = Board()
+    board.print()
     moves_made = []
     curr_player = int(starting_player)
     curr_root = 'null;'
